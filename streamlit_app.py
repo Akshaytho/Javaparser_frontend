@@ -57,6 +57,7 @@
 import io
 import zipfile
 import re
+import base64
 from typing import List, Tuple
 
 import requests
@@ -120,13 +121,22 @@ if st.button("Generate JUnit Tests") and parsed_info:
     try:
         response = requests.post(backend_url, json={"files": files_payload})
         if response.status_code == 200:
-            st.success("Tests generated successfully.")
-            st.download_button(
-                label="Download tests as ZIP",
-                data=response.content,
-                file_name="junit-tests.zip",
-                mime="application/zip"
-            )
+            result = response.json()
+            zip_b64 = result.get("zip")
+            if zip_b64:
+                zip_bytes = base64.b64decode(zip_b64)
+                st.success("Tests generated successfully.")
+                st.download_button(
+                    label="Download tests as ZIP",
+                    data=zip_bytes,
+                    file_name="junit-tests.zip",
+                    mime="application/zip"
+                )
+                if result.get("methods"):
+                    st.subheader("Methods found in source files")
+                    st.json(result["methods"])
+            else:
+                st.error("No zip archive returned by backend")
         else:
             st.error(f"Backend returned {response.status_code}: {response.text}")
     except Exception as exc:
